@@ -29,14 +29,15 @@ import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import org.springframework.web.servlet.resource.PathResourceResolver;
 
+
 //import javax.annotation.PostConstruct;
 import java.io.File;
-import java.io.IOException;
 import java.io.InputStream;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
+@EnableConfigurationProperties(properties.class)
 @SpringBootApplication
 public class KnoteJavaApplication {
 
@@ -78,6 +79,9 @@ class KNoteController {
     @Autowired
     private NotesRepository notesRepository;
 
+    @Autowired
+    private properties properties;
+
     @GetMapping("/")
     public String index(Model model) {
         getAllNotes(model);
@@ -95,13 +99,21 @@ class KNoteController {
             @RequestParam String description,
             @RequestParam(required = false) String publish,
             @RequestParam(required = false) String upload,
-            Model model) throws IOException {
+            Model model) throws Exception {
 
         if (publish != null && publish.equals("Publish")) {
             saveNote(description, model);
             getAllNotes(model);
             return "redirect:/";
         }
+        if (upload != null && upload.equals("Upload")) {
+            if (file != null && file.getOriginalFilename() != null
+                  && !file.getOriginalFilename().isEmpty()) {
+              uploadImage(file, description, model);
+            }
+            getAllNotes(model);
+            return "index";
+          }
         // After save fetch all notes again
         return "index";
     }
@@ -112,5 +124,48 @@ class KNoteController {
             model.addAttribute("description", "");
         }
     }
+
+    private void uploadImage(MultipartFile file, String description, Model model) throws Exception {
+        File uploadsDir = new File(properties.getUploadDir()); 
+        if (!uploadsDir.exists()) {
+          uploadsDir.mkdir();
+        }
+        String fileId = UUID.randomUUID().toString() + "."
+                          + file.getOriginalFilename().split("\\.")[1];
+        file.transferTo(new File(properties.getUploadDir() + fileId));
+        model.addAttribute("description", description + " ![](/uploads/" + fileId + ")");
+      }
 }
 
+@ConfigurationProperties(prefix = "knote")
+class properties {
+    @Value("${uploadDir:/tmp/uploads/}")
+    private String uploadDir;
+
+    public String getUploadDir() {
+        return uploadDir;
+    }
+
+    public void setUploadDir(String uploadDir) {
+        this.uploadDir = uploadDir;
+    }
+}
+
+@Configuration
+@EnableConfigurationProperties(properties.class)
+class KnoteConfig implements WebMvcConfigurer {
+
+    @Autowired
+    private properties properties;
+
+    @Override
+    public void addResourceHandlers(ResourceHandlerRegistry registry) {
+        registry
+                .addResourceHandler("/uploads/**")
+                .addResourceLocations("file:" + properties.getUploadDir())
+                .setCachePeriod(3600)
+                .resourceChain(true)
+                .addResolver(new PathResourceResolver());
+    }
+
+}
