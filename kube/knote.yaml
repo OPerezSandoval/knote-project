@@ -9,7 +9,7 @@ spec:
     - port: 80
       targetPort: 8080
   type: LoadBalancer
-  
+
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -27,10 +27,16 @@ spec:
     spec:
       containers:
         - name: app
-          image: operez11/knote-java:1.0.0
+          image: operez11/knote-java:2.0.0
           ports:
-            - containerPort: 8080
+            - containerPort: 3000
           env:
             - name: MONGO_URL
               value: mongodb://mongo:27017/dev
+            - name: MINIO_ACCESS_KEY
+              value: mykey
+            - name: MINIO_SECRET_KEY
+              value: mysecret
+            - name: MINIO_HOST
+              value: minio
           imagePullPolicy: Always
