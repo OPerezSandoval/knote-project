@@ -176,7 +176,7 @@ class KNoteController {
     }
 
     private void saveNote(String description, Model model) {
-        if (description != null && !description.trim().isEmpty()) {notesRepository.save(new Note(null, description.trim()));
+        if (description != null && !description.trim().isEmpty()) {
             // Translate to markup to html
             Node document = parser.parse(description.trim());
             String html = renderer.render(document);
@@ -187,12 +187,26 @@ class KNoteController {
     }
 
     private void uploadImage(MultipartFile file, String description, Model model) throws Exception {
-  String fileId = UUID.randomUUID().toString() + "." + file.getOriginalFilename().split("\\.")[1];
-  minioClient.putObject(properties.getMinioBucket(), fileId, file.getInputStream(),
-                                file.getSize(), null, null, file.getContentType());
-  model.addAttribute("description",
-                description + " ![](/img/" + fileId + ")");
-}
+        String fileId = UUID.randomUUID().toString() + "." + file.getOriginalFilename().split("\\.")[1];
+        
+        // Upload the image to MinIO
+        minioClient.putObject(
+            properties.getMinioBucket(),
+            fileId,
+            file.getInputStream(),
+            file.getSize(),
+            null, 
+            null, 
+            file.getContentType()
+        );
+    
+        // Generate the MinIO URL for the uploaded image
+        String imageUrl = "http://" + properties.getMinioHost() + ":9000/" + properties.getMinioBucket() + "/" + fileId;
+    
+        // Embed the image URL in the description using Markdown syntax
+        String updatedDescription = description + " ![](" + imageUrl + ")";
+        model.addAttribute("description", updatedDescription);
+    }
 
 private void initMinio() throws InterruptedException {
     boolean success = false;
@@ -261,4 +275,5 @@ class KnoteConfig implements WebMvcConfigurer {
                 .resourceChain(true)
                 .addResolver(new PathResourceResolver());
     }
-} */
+} 
+*/
